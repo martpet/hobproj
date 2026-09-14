@@ -6,7 +6,7 @@ import {
 } from "@simplewebauthn/server";
 import { WEBAUTHN_ORIGIN, WEBAUTHN_RP_ID } from "../constants.ts";
 import { deletePasskeyRegCookie, getPasskeyRegCookie } from "../cookie.ts";
-import { deletePasskeyRegOptions, getPasskeyRegOptions } from "../kv.ts";
+import { passkeyRegOptions } from "../kv.ts";
 import { recordPasskeyEvent, withWebAuthnCeremonySpan } from "../telemetry.ts";
 import { Passkey } from "../types.ts";
 
@@ -37,13 +37,13 @@ export async function verifyRegResponseJson(
       let regOptions;
 
       if (cookie) {
-        regOptions = (await getPasskeyRegOptions(cookie)).value;
+        regOptions = await passkeyRegOptions.getByCookie(cookie);
         deletePasskeyRegCookie(headers);
       }
 
       // Single-use challenge; see `verifiyAuthResponseJson`.
       if (regOptions) {
-        await deletePasskeyRegOptions(regOptions);
+        await passkeyRegOptions.delete(regOptions);
       }
 
       if (!regOptions || regOptions.expiresAt < Date.now()) {

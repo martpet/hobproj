@@ -8,13 +8,7 @@ import {
 } from "@simplewebauthn/server";
 import { WEBAUTHN_ORIGIN, WEBAUTHN_RP_ID } from "../constants.ts";
 import { deletePasskeyAuthCookie, getPasskeyAuthCookie } from "../cookie.ts";
-import {
-  deletePasskeyAuthOptions,
-  getPasskeyAuthOptions,
-  getPasskeyByCredId,
-  getPasskeyDeletedTombstone,
-  setPasskey,
-} from "../kv.ts";
+import { passkeyAuthOptions, passkeys, passkeyTombstones } from "../kv.ts";
 import { getUnknownCredentialSignal } from "../signals.ts";
 import { recordPasskeyEvent, withWebAuthnCeremonySpan } from "../telemetry.ts";
 import { Passkey } from "../types.ts";
@@ -44,14 +38,14 @@ export async function verifiyAuthResponseJson(
       let authOptions;
 
       if (cookie) {
-        authOptions = (await getPasskeyAuthOptions(cookie)).value;
+        authOptions = await passkeyAuthOptions.getByCookie(cookie);
         deletePasskeyAuthCookie(headers);
       }
 
       // A challenge is single-use: consume it before verifying so a replayed
       // assertion, or a second attempt with the same options, is always rejected.
       if (authOptions) {
-        await deletePasskeyAuthOptions(authOptions);
+        await passkeyAuthOptions.delete(authOptions);
       }
 
       if (!authOptions || authOptions.expiresAt < Date.now()) {
@@ -61,7 +55,9 @@ export async function verifiyAuthResponseJson(
         return { ok: false };
       }
 
-      const passkeyEntry = await getPasskeyByCredId(authResponseJson.id);
+      const passkeyEntry = await passkeys.getEntryByCredId(
+        authResponseJson.id,
+      );
       const passkey = passkeyEntry.value;
 
       // Discoverable credentials mean the browser may offer a passkey whose
@@ -70,7 +66,7 @@ export async function verifiyAuthResponseJson(
       if (!passkey) {
         const userHandle = authResponseJson.response.userHandle;
         const tombstoned = userHandle &&
-          (await getPasskeyDeletedTombstone(userHandle)).value;
+          await passkeyTombstones.getByWebauthnUserId(userHandle);
 
         recordPasskeyEvent("authentication.verify", "failure", {
           reason: tombstoned ? "account_deleted" : "credential_unknown",
@@ -131,7 +127,7 @@ export async function verifiyAuthResponseJson(
       };
 
       atomic.check(passkeyEntry);
-      setPasskey(updatedPasskey, atomic);
+      passkeys.stageSet(atomic, updatedPasskey);
 
       const result = await atomic.commit();
 

@@ -41,3 +41,7 @@ export interface PasskeyAuthOptions {
   value: PublicKeyCredentialRequestOptionsJSON;
   expiresAt: number;
 }
+
+export interface PasskeyTombstone {
+  webauthnUserId: string;
+}

@@ -7,7 +7,7 @@ import { redirectBack } from "@shared/responses/redirect-back.ts";
 import { respondUnauthorized } from "@shared/responses/unauthorized.tsx";
 import { PASSKEY_NAME_MAX_LENGTH } from "../constants.ts";
 import { getDefaultPasskeyName } from "../helpers.ts";
-import { getPasskeyById, setPasskey } from "../kv.ts";
+import { passkeys } from "../kv.ts";
 import { recordPasskeyEvent } from "../telemetry.ts";
 
 export async function handlePasskeyRename(c: Context) {
@@ -16,7 +16,7 @@ export async function handlePasskeyRename(c: Context) {
     return respondUnauthorized(c);
   }
 
-  const passkey = (await getPasskeyById(c.params.passkeyId!)).value;
+  const passkey = await passkeys.getById(c.params.passkeyId!);
 
   if (!passkey) {
     recordPasskeyEvent("rename", "failure", { reason: "not_found" });
@@ -46,7 +46,7 @@ export async function handlePasskeyRename(c: Context) {
 
   if (usedName !== passkey.name) {
     const atomic = kv.atomic();
-    setPasskey({ ...passkey, name: usedName }, atomic);
+    passkeys.stageSet(atomic, { ...passkey, name: usedName });
     await atomic.commit();
   }
 

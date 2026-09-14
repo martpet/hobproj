@@ -1,11 +1,11 @@
 import { verifyRegResponseJson } from "@features/passkeys/ceremony/reg-verify.ts";
 import { getDefaultPasskeyName } from "@features/passkeys/helpers.ts";
-import { setPasskey } from "@features/passkeys/kv.ts";
+import { passkeys } from "@features/passkeys/kv.ts";
 import {
   setNewSessionCookie,
   stageSession,
 } from "@features/sessions/helpers.ts";
-import { setUser, userKeys } from "@features/users/kv.ts";
+import { users } from "@features/users/kv.ts";
 import { Context } from "@shared/context.ts";
 import { kv } from "@shared/kv/kv.ts";
 import { respondBadRequest } from "@shared/responses/bad-request.ts";
@@ -43,21 +43,18 @@ export async function handleSignupFinish(c: Context) {
   // unique even if two signups for it finish at the same moment; the loser
   // gets 409. `handleSignupStart` already checked, but that was a race.
   atomic.check({
-    key: userKeys.byUsername(username),
+    key: users.keyByUsername(username),
     versionstamp: null,
   });
 
-  const user = setUser({ username }, atomic);
+  const user = users.stageSet(atomic, { username });
 
   // First passkey of a new user, always named after the authenticator.
-  const storedPasskey = setPasskey(
-    {
-      ...passkey,
-      userId: user.id,
-      name: getDefaultPasskeyName(passkey),
-    },
-    atomic,
-  );
+  const storedPasskey = passkeys.stageSet(atomic, {
+    ...passkey,
+    userId: user.id,
+    name: getDefaultPasskeyName(passkey),
+  });
 
   // User, passkey and session land in one commit, so there is no window in
   // which the account exists but the signup response can't log the user in.

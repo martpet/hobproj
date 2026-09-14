@@ -1,14 +1,9 @@
 import { getEnv } from "@shared/environment.ts";
-import { traceKv } from "@shared/observability/kv.ts";
+import { createDefineCollection } from "./collection.ts";
 
-export * from "./keys.ts";
+// The one place the database is opened. Reads and writes belong in a
+// collection, which derives the keys and traces the call; direct use of this
+// handle is for `atomic()`, when several collections have to commit together.
+export const kv = await Deno.openKv(getEnv("KV_PATH"));
 
-const kvPath = getEnv("KV_PATH");
-
-// Unset → Deno's default per-project location; a path → SQLite file there.
-// The `kv` unstable flag is enabled in deno.json.
-const rawKv = await Deno.openKv(kvPath);
-
-// Traced wrapper around the raw Deno.Kv instance — see
-// @shared/observability/kv.ts for what the tracing actually adds.
-export const kv = traceKv(rawKv);
+export const defineCollection = createDefineCollection(kv);

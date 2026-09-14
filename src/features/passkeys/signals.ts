@@ -3,7 +3,7 @@ import {
   SendSignalUnknownCredentialOpts,
 } from "@simplewebauthn/server";
 import { WEBAUTHN_RP_ID } from "./constants.ts";
-import { listPasskeysByUserId } from "./kv.ts";
+import { passkeys } from "./kv.ts";
 import { Passkey } from "./types.ts";
 
 // Tells the credential manager the passkey it just offered is not one this
@@ -23,13 +23,13 @@ export function getUnknownCredentialSignal(
 export async function getAllAcceptedCredentialsSignal(
   passkey: Passkey,
 ): Promise<SendSignalAllAcceptedCredentialsOpts> {
-  const passkeys = await listPasskeysByUserId(passkey.userId);
+  const userPasskeys = await passkeys.listByUserId(passkey.userId);
 
   return {
     signalName: "allAcceptedCredentials",
     rpID: WEBAUTHN_RP_ID,
     userID: passkey.webauthnUserId,
-    allAcceptedCredentialIDs: passkeys
+    allAcceptedCredentialIDs: userPasskeys
       .filter((p) => p.webauthnUserId === passkey.webauthnUserId)
       .map((p) => p.credId),
   };
@@ -38,9 +38,9 @@ export async function getAllAcceptedCredentialsSignal(
 // One signal per webauthn user ID with an empty accepted list, so the
 // credential manager drops every passkey it holds for a deleted account.
 export function getNoAcceptedCredentialsSignals(
-  passkeys: Passkey[],
+  deletedPasskeys: Passkey[],
 ): SendSignalAllAcceptedCredentialsOpts[] {
-  const webauthnUserIds = new Set(passkeys.map((p) => p.webauthnUserId));
+  const webauthnUserIds = new Set(deletedPasskeys.map((p) => p.webauthnUserId));
 
   return [...webauthnUserIds].map((userID) => ({
     signalName: "allAcceptedCredentials",

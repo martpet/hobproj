@@ -6,7 +6,7 @@ import { respondRedirect } from "@shared/responses/redirect.ts";
 import { respondUnauthorized } from "@shared/responses/unauthorized.tsx";
 import { deleteSessionCookie } from "../cookie.ts";
 import { destroySession } from "../helpers.ts";
-import { getSessionById } from "../kv.ts";
+import { sessions } from "../kv.ts";
 import { recordSessionEvent } from "../telemetry.ts";
 
 export async function handleLogOut(c: Context) {
@@ -23,7 +23,7 @@ export async function handleLogOut(c: Context) {
   // With a `sessionId` this revokes one of the user's *other* sessions from
   // the sessions table and stays on the page; without, it is a plain logout.
   if (typeof sessionId === "string") {
-    const session = (await getSessionById(sessionId)).value;
+    const session = await sessions.getById(sessionId);
 
     const res = redirectBack(c);
 

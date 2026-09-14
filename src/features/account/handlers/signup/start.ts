@@ -3,7 +3,7 @@ import {
   USERNAME_PATTERN_DESCRIPTION,
   USERNAME_PATTERN_REGEX,
 } from "@features/users/constants.ts";
-import { getUserByUsername } from "@features/users/kv.ts";
+import { users } from "@features/users/kv.ts";
 import { Context } from "@shared/context.ts";
 import { respondBadRequest } from "@shared/responses/bad-request.ts";
 import { respondForbidden } from "@shared/responses/forbidden.tsx";
@@ -36,9 +36,9 @@ export async function handleSignupStart(c: Context) {
 
   // Early rejection for UX only; the authoritative uniqueness check is the
   // atomic commit in `handleSignupFinish`.
-  const entry = await getUserByUsername(username);
+  const existingUser = await users.getByUsername(username);
 
-  if (entry.value) {
+  if (existingUser) {
     recordAccountEvent("signup.start", "failure", {
       reason: "username_taken",
     });

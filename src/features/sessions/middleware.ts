@@ -1,5 +1,5 @@
 import { setFlash } from "@features/flash/helpers.ts";
-import { getUserById } from "@features/users/kv.ts";
+import { users } from "@features/users/kv.ts";
 import { isAuthenticatedContext } from "@shared/context.ts";
 import { cacheNoStoreOnCookieChange } from "@shared/header/cache-control.ts";
 import { Middleware } from "@shared/types.ts";
@@ -10,7 +10,7 @@ import {
   extendCurrentSession,
   getSessionAbsoluteExpiresAt,
 } from "./helpers.ts";
-import { getSessionByCookie } from "./kv.ts";
+import { sessions } from "./kv.ts";
 
 // Paths that never need a user and would otherwise cost a KV read (and a
 // possible session write) per request. Substring/regex matched against the
@@ -37,7 +37,7 @@ export const sessionMid: Middleware = (next) => async (c) => {
     return next(c);
   }
 
-  const sessionEntry = await getSessionByCookie(cookie);
+  const sessionEntry = await sessions.getEntryByCookie(cookie);
   const session = sessionEntry.value;
 
   // Cookie for a session that no longer exists (revoked elsewhere, KV TTL
@@ -75,7 +75,7 @@ export const sessionMid: Middleware = (next) => async (c) => {
 
   // Account deleted while a session was still around (e.g. a race with the
   // atomic delete): treat it like an expired session, minus the flash.
-  const user = (await getUserById(session.userId)).value;
+  const user = await users.getById(session.userId);
 
   if (!user) {
     const destroyed = await destroySessionIfUnchanged(sessionEntry);

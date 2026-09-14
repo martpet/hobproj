@@ -4,7 +4,7 @@ import {
   WEBAUTHN_USER_VERIFICATION,
 } from "../constants.ts";
 import { setPasskeyAuthCookie } from "../cookie.ts";
-import { setPasskeyAuthOptions } from "../kv.ts";
+import { passkeyAuthOptions } from "../kv.ts";
 import { recordPasskeyEvent, withWebAuthnCeremonySpan } from "../telemetry.ts";
 import { generateAuthenticationOptions } from "@simplewebauthn/server";
 
@@ -24,7 +24,7 @@ export async function createAuthOptions(headers: Headers) {
       }),
   );
 
-  await setPasskeyAuthOptions({
+  await passkeyAuthOptions.set({
     cookie: setPasskeyAuthCookie(headers),
     value: authOptions,
     expiresAt: Date.now() + WEBAUTHN_TIMEOUT,

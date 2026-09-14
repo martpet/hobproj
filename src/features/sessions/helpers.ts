@@ -1,5 +1,5 @@
 import { setFlash } from "@features/flash/helpers.ts";
-import { getUserById } from "@features/users/kv.ts";
+import { users } from "@features/users/kv.ts";
 import { AuthenticatedContext, Context } from "@shared/context.ts";
 import { generateToken } from "@shared/crypto.ts";
 import { cacheNoStoreOnCookieChange } from "@shared/header/cache-control.ts";
@@ -12,7 +12,7 @@ import {
   SESSION_IDLE_TIMEOUT,
 } from "./constants.ts";
 import { deleteSessionCookie, setSessionCookie } from "./cookie.ts";
-import { deleteSession, setSession } from "./kv.ts";
+import { sessions } from "./kv.ts";
 import { Session } from "./types.ts";
 
 // The session id is a ULID minted whenever a passkey ceremony completes
@@ -46,7 +46,7 @@ export function stageSession(
 ) {
   const now = Date.now();
 
-  return setSession({
+  return sessions.stageSet(atomic, {
     cookie: generateToken(),
     userId,
     passkeyId,
@@ -55,7 +55,7 @@ export function stageSession(
     browser: c.ua.browser.name,
     os: c.ua.os.name,
     ip: c.ip,
-  }, atomic);
+  });
 }
 
 export function setNewSessionCookie(headers: Headers, session: Session) {
@@ -70,7 +70,7 @@ export async function createSession(
   userId: string,
   passkeyId: string,
 ) {
-  const userEntry = await getUserById(userId);
+  const userEntry = await users.getEntryById(userId);
 
   if (!userEntry.value) {
     return false;
@@ -132,7 +132,7 @@ export async function extendCurrentSession(
   // `lastActive` is part of one index key; `setSession` drops the stale
   // entry itself when given the previous session.
   atomic.check(sessionEntry);
-  setSession(updatedSession, atomic, session);
+  sessions.stageSet(atomic, updatedSession, { previous: session });
 
   const result = await atomic.commit();
 
@@ -154,7 +154,7 @@ export async function extendCurrentSession(
 export async function destroySession(session: Session) {
   const atomic = kv.atomic();
 
-  deleteSession(session, atomic);
+  sessions.stageDelete(atomic, session);
 
   const result = await atomic.commit();
 
@@ -167,7 +167,7 @@ export async function destroySessionIfUnchanged(
   const atomic = kv.atomic();
 
   atomic.check(entry);
-  deleteSession(entry.value, atomic);
+  sessions.stageDelete(atomic, entry.value);
 
   const result = await atomic.commit();
 

@@ -7,7 +7,7 @@ import { respondForbidden } from "@shared/responses/forbidden.tsx";
 import { respondUnauthorized } from "@shared/responses/unauthorized.tsx";
 import { verifyRegResponseJson } from "../../ceremony/reg-verify.ts";
 import { getDefaultPasskeyName } from "../../helpers.ts";
-import { getPasskeyByCredId, setPasskey } from "../../kv.ts";
+import { passkeys } from "../../kv.ts";
 import { recordPasskeyEvent } from "../../telemetry.ts";
 
 export async function handlePasskeyAddFinish(c: Context) {
@@ -44,7 +44,7 @@ export async function handlePasskeyAddFinish(c: Context) {
 
   // Second line of defence for one-passkey-per-authenticator: a credential
   // that slipped past `excludeCredentials` (e.g. cloned) is rejected here.
-  if ((await getPasskeyByCredId(passkey.credId)).value) {
+  if (await passkeys.getByCredId(passkey.credId)) {
     recordPasskeyEvent("add.finish", "failure", {
       reason: "credential_conflict",
     });
@@ -57,7 +57,7 @@ export async function handlePasskeyAddFinish(c: Context) {
   const atomic = kv.atomic();
   const name = getDefaultPasskeyName(passkey);
 
-  setPasskey({ ...passkey, userId: c.user.id, name }, atomic);
+  passkeys.stageSet(atomic, { ...passkey, userId: c.user.id, name });
 
   await atomic.commit();
 

@@ -1,6 +1,6 @@
 import { setFlash } from "@features/flash/helpers.ts";
 import { isReauthRequiredForSensitiveAction } from "@features/sessions/helpers.ts";
-import { deleteSession, listSessionsByUserId } from "@features/sessions/kv.ts";
+import { sessions } from "@features/sessions/kv.ts";
 import { respondReauthRequired } from "@features/sessions/responses/reauth-required.ts";
 import { Context, isAuthenticatedContext } from "@shared/context.ts";
 import { requestAcceptsHtml } from "@shared/header/negotiation.ts";
@@ -9,7 +9,7 @@ import { respondConflict } from "@shared/responses/conflict.ts";
 import { respondNotFound } from "@shared/responses/not-found.tsx";
 import { redirectBack } from "@shared/responses/redirect-back.ts";
 import { respondUnauthorized } from "@shared/responses/unauthorized.tsx";
-import { deletePasskey, getPasskeyById, listPasskeysByUserId } from "../kv.ts";
+import { passkeys } from "../kv.ts";
 import { getUnknownCredentialSignal } from "../signals.ts";
 import { recordPasskeyEvent } from "../telemetry.ts";
 
@@ -31,7 +31,7 @@ export async function handlePasskeyDelete(c: Context) {
     return respondReauthRequired(c);
   }
 
-  const passkey = (await getPasskeyById(c.params.passkeyId!)).value;
+  const passkey = await passkeys.getById(c.params.passkeyId!);
 
   if (!passkey) {
     recordPasskeyEvent("delete", "failure", { reason: "not_found" });
@@ -46,7 +46,7 @@ export async function handlePasskeyDelete(c: Context) {
 
   // The last passkey is the only way into the account, so deleting it would
   // lock the user out; deleting the account is the way to do that.
-  if ((await listPasskeysByUserId(c.user.id)).length <= 1) {
+  if ((await passkeys.listByUserId(c.user.id)).length <= 1) {
     recordPasskeyEvent("delete", "failure", { reason: "last_passkey" });
     if (requestAcceptsHtml(c)) {
       const res = redirectBack(c);
@@ -61,22 +61,22 @@ export async function handlePasskeyDelete(c: Context) {
 
   const atomic = kv.atomic();
 
-  deletePasskey(passkey, atomic);
+  passkeys.stageDelete(atomic, passkey);
 
   // A session's legitimacy is derived from the passkey that minted it, so a
   // revoked credential shouldn't keep granting access. The current session
   // is spared even if it came from this passkey, so routine cleanup doesn't
   // log the user out mid-flow.
-  const sessions = await listSessionsByUserId(c.user.id);
-  for (const session of sessions) {
+  const userSessions = await sessions.listByUserId(c.user.id);
+  for (const session of userSessions) {
     if (session.passkeyId === passkey.id && session.id !== c.session.id) {
-      deleteSession(session, atomic);
+      sessions.stageDelete(atomic, session);
     }
   }
 
   await atomic.commit();
   recordPasskeyEvent("delete", "success", {
-    "session.revoked_count": sessions.filter((session) =>
+    "session.revoked_count": userSessions.filter((session) =>
       session.passkeyId === passkey.id && session.id !== c.session.id
     ).length,
   });

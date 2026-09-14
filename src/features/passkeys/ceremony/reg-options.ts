@@ -11,7 +11,7 @@ import {
   WEBAUTHN_USER_VERIFICATION,
 } from "../constants.ts";
 import { setPasskeyRegCookie } from "../cookie.ts";
-import { setPasskeyRegOptions } from "../kv.ts";
+import { passkeyRegOptions } from "../kv.ts";
 
 interface RegOptionsParams {
   username: string;
@@ -56,7 +56,7 @@ export async function createRegOptions(
       }),
   );
 
-  await setPasskeyRegOptions({
+  await passkeyRegOptions.set({
     cookie: setPasskeyRegCookie(headers),
     value: regOptions,
     expiresAt: Date.now() + WEBAUTHN_TIMEOUT,
