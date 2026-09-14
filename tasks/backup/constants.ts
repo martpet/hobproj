@@ -1,0 +1,9 @@
+export const BACKUP_ROOT_ENV = "BACKUP_LOCAL_PATH";
+export const BACKUP_PASSWORD_ENV = "BACKUP_ENCRYPTION_PASSWORD";
+export const BACKUP_KEYCHAIN_SERVICE_ENV = "BACKUP_KEYCHAIN_SERVICE";
+export const DEFAULT_BACKUP_KEYCHAIN_SERVICE = "hobproj-backup";
+export const BACKUP_AGENT_LABEL = "com.hobproj.backup";
+export const BACKUP_LOG_FILE = "hobproj-backup.log";
+export const LOCAL_ENV_BACKUP_DIR = "local-env";
+export const LUKS_HEADER_BACKUP_DIR = "luks-header";
+export const MIGRATION_BACKUP_DIR = "migration";

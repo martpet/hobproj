@@ -1,0 +1,65 @@
+{
+  "tasks": {
+    "dev": "deno -E -N -R -W --env-file --watch src/main.ts",
+    "check": {
+      "command": "deno check --frozen src/main.ts 'tasks/**/*.ts'",
+      "dependencies": ["format", "lint", "audit"]
+    },
+    "format": "deno fmt --check '**/*.ts' '**/*.tsx'",
+    "lint": "deno lint --ignore='src/**/assets'",
+    "audit": "deno audit --frozen-lockfile",
+    "install-hooks": "git config core.hooksPath .githooks",
+    "deploy": "deno -A tasks/deploy/deploy.ts",
+    "logs": "deno -A tasks/deploy/logs.ts",
+    "publish-deployer": "deno -A tasks/deploy/publish-deployer.ts",
+    "publish-installer": "deno -A tasks/setup-remote/publish-installer.ts",
+    "setup-remote": "deno -A tasks/setup-remote/setup-remote.ts",
+    "set-secret": "deno -A tasks/setup-remote/set-secret.ts",
+    "backup": "deno task backup-db prod && deno task backup-local-env",
+    "schedule-backup": "deno -A tasks/backup/schedule.ts",
+    "backup-db": "deno -A tasks/backup/backup-db.ts",
+    "backup-local-env": "deno -A tasks/backup/backup-local-env.ts",
+    "restore-db": "deno -A tasks/backup/restore-db.ts",
+    "restore-local-env": "deno -A tasks/backup/restore-local-env.ts",
+    "get-simplewebauthn": "deno bundle -o src/features/passkeys/assets/simplewebauthn.js jsr:@simplewebauthn/browser@^14.0.0",
+    "update-aaguids": "deno -A tasks/passkeys/update-aaguids.ts"
+  },
+  "unstable": ["kv"],
+  "imports": {
+    "@shared/": "./src/shared/",
+    "@features/": "./src/features/",
+    "@middleware/": "./src/middleware/",
+    "@std/async": "jsr:@std/async@^1.5.0",
+    "@std/cli": "jsr:@std/cli@^1.0.32",
+    "@josh-hemphill/maxminddb-wasm": "jsr:@josh-hemphill/maxminddb-wasm@^2.1.8",
+    "@simplewebauthn/server": "jsr:@simplewebauthn/server@^14.0.1",
+    "@std/collections": "jsr:@std/collections@^1.3.0",
+    "@std/datetime": "jsr:@std/datetime@^0.225.7",
+    "@std/encoding": "jsr:@std/encoding@^1.0.11",
+    "@std/fs": "jsr:@std/fs@^1.0.24",
+    "@std/http": "jsr:@std/http@^1.1.3",
+    "@std/path": "jsr:@std/path@^1.1.6",
+    "@std/tar": "jsr:@std/tar@^0.1.10",
+    "@std/dotenv": "jsr:@std/dotenv@^0.225.8",
+    "@std/text": "jsr:@std/text@^1.0.19",
+    "@std/ulid": "jsr:@std/ulid@^1.0.0",
+    "@opentelemetry/api": "npm:@opentelemetry/api@^1.9.0",
+    "preact": "npm:preact@^10.29.8",
+    "preact/compat": "npm:preact@^10.29.8/compat",
+    "preact-render-to-string": "npm:preact-render-to-string@^6.7.0",
+    "type-fest": "npm:type-fest@^5.9.0"
+  },
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "jsxImportSource": "npm:preact",
+    "noUncheckedIndexedAccess": true
+  },
+  "lint": {
+    "rules": {
+      "exclude": ["jsx-key", "jsx-button-has-type"]
+    }
+  },
+  "fmt": {
+    "exclude": ["src/**/assets"]
+  }
+}

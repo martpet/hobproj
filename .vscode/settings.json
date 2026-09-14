@@ -1,0 +1,24 @@
+{
+  "deno.enable": true,
+  "deno.lint": true,
+  "workbench.editor.labelFormat": "short",
+  "editor.formatOnSave": true,
+  "editor.defaultFormatter": "denoland.vscode-deno",
+  "editor.tabSize": 2,
+  "editor.codeActionsOnSave": {
+    "source.organizeImports": "always"
+  },
+  "sortcss.sortingStrategy": "frakto",
+  "[css]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[javascript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "deno.disablePaths": [ // glob pattern feature request: https://github.com/denoland/vscode_deno/issues/834
+    "src/assets",
+    "src/features/account/assets",
+    "src/features/passkeys/assets",
+    "src/features/sessions/assets"
+  ]
+}
