@@ -6,9 +6,13 @@ import {
   SendSignalUnknownCredentialOpts,
   verifyAuthenticationResponse,
 } from "@simplewebauthn/server";
+import {
+  passkeyAuthOptions,
+  passkeys,
+  passkeyTombstones,
+} from "../collection.ts";
 import { WEBAUTHN_ORIGIN, WEBAUTHN_RP_ID } from "../constants.ts";
 import { deletePasskeyAuthCookie, getPasskeyAuthCookie } from "../cookie.ts";
-import { passkeyAuthOptions, passkeys, passkeyTombstones } from "../kv.ts";
 import { getUnknownCredentialSignal } from "../signals.ts";
 import { recordPasskeyEvent, withWebAuthnCeremonySpan } from "../telemetry.ts";
 import { Passkey } from "../types.ts";

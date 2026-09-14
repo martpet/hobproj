@@ -1,9 +1,9 @@
-import { recordPasskeyEvent, withWebAuthnCeremonySpan } from "../telemetry.ts";
 import {
   generateRegistrationOptions,
   PublicKeyCredentialDescriptorJSON,
 } from "@simplewebauthn/server";
 import { decodeBase64Url } from "@std/encoding";
+import { passkeyRegOptions } from "../collection.ts";
 import {
   WEBAUTHN_RP_ID,
   WEBAUTHN_RP_NAME,
@@ -11,7 +11,7 @@ import {
   WEBAUTHN_USER_VERIFICATION,
 } from "../constants.ts";
 import { setPasskeyRegCookie } from "../cookie.ts";
-import { passkeyRegOptions } from "../kv.ts";
+import { recordPasskeyEvent, withWebAuthnCeremonySpan } from "../telemetry.ts";
 
 interface RegOptionsParams {
   username: string;

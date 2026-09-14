@@ -1,11 +1,11 @@
 import { setFlash } from "@features/flash/helpers.ts";
-import { passkeys, passkeyTombstones } from "@features/passkeys/kv.ts";
+import { passkeys, passkeyTombstones } from "@features/passkeys/collection.ts";
 import { getNoAcceptedCredentialsSignals } from "@features/passkeys/signals.ts";
+import { sessions } from "@features/sessions/collection.ts";
 import { deleteSessionCookie } from "@features/sessions/cookie.ts";
 import { isReauthRequiredForSensitiveAction } from "@features/sessions/helpers.ts";
-import { sessions } from "@features/sessions/kv.ts";
 import { respondReauthRequired } from "@features/sessions/responses/reauth-required.ts";
-import { users } from "@features/users/kv.ts";
+import { users } from "@features/users/collection.ts";
 import { Context, isAuthenticatedContext } from "@shared/context.ts";
 import { requestAcceptsHtml } from "@shared/header/negotiation.ts";
 import { kv } from "@shared/kv/kv.ts";

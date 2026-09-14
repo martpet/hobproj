@@ -1,9 +1,9 @@
 import { createRegOptions } from "@features/passkeys/ceremony/reg-options.ts";
+import { users } from "@features/users/collection.ts";
 import {
   USERNAME_PATTERN_DESCRIPTION,
   USERNAME_PATTERN_REGEX,
 } from "@features/users/constants.ts";
-import { users } from "@features/users/kv.ts";
 import { Context } from "@shared/context.ts";
 import { respondBadRequest } from "@shared/responses/bad-request.ts";
 import { respondForbidden } from "@shared/responses/forbidden.tsx";

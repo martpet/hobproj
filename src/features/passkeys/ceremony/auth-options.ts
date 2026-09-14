@@ -1,12 +1,12 @@
+import { generateAuthenticationOptions } from "@simplewebauthn/server";
+import { passkeyAuthOptions } from "../collection.ts";
 import {
   WEBAUTHN_RP_ID,
   WEBAUTHN_TIMEOUT,
   WEBAUTHN_USER_VERIFICATION,
 } from "../constants.ts";
 import { setPasskeyAuthCookie } from "../cookie.ts";
-import { passkeyAuthOptions } from "../kv.ts";
 import { recordPasskeyEvent, withWebAuthnCeremonySpan } from "../telemetry.ts";
-import { generateAuthenticationOptions } from "@simplewebauthn/server";
 
 // Issues a challenge with no `allowCredentials`: the authenticator picks any
 // discoverable credential for this RP, which is what makes usernameless

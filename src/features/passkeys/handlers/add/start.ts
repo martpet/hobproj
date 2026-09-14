@@ -3,7 +3,7 @@ import { respondReauthRequired } from "@features/sessions/responses/reauth-requi
 import { Context, isAuthenticatedContext } from "@shared/context.ts";
 import { respondUnauthorized } from "@shared/responses/unauthorized.tsx";
 import { createRegOptions } from "../../ceremony/reg-options.ts";
-import { passkeys } from "../../kv.ts";
+import { passkeys } from "../../collection.ts";
 import { recordPasskeyEvent } from "../../telemetry.ts";
 
 export async function handlePasskeyAddStart(c: Context) {

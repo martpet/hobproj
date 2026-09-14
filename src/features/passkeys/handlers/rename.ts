@@ -5,9 +5,9 @@ import { respondBadRequest } from "@shared/responses/bad-request.ts";
 import { respondNotFound } from "@shared/responses/not-found.tsx";
 import { redirectBack } from "@shared/responses/redirect-back.ts";
 import { respondUnauthorized } from "@shared/responses/unauthorized.tsx";
+import { passkeys } from "../collection.ts";
 import { PASSKEY_NAME_MAX_LENGTH } from "../constants.ts";
 import { getDefaultPasskeyName } from "../helpers.ts";
-import { passkeys } from "../kv.ts";
 import { recordPasskeyEvent } from "../telemetry.ts";
 
 export async function handlePasskeyRename(c: Context) {

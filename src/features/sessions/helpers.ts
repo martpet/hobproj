@@ -1,10 +1,11 @@
 import { setFlash } from "@features/flash/helpers.ts";
-import { users } from "@features/users/kv.ts";
+import { users } from "@features/users/collection.ts";
 import { AuthenticatedContext, Context } from "@shared/context.ts";
 import { generateToken } from "@shared/crypto.ts";
 import { cacheNoStoreOnCookieChange } from "@shared/header/cache-control.ts";
 import { kv } from "@shared/kv/kv.ts";
 import { decodeTime } from "@std/ulid";
+import { sessions } from "./collection.ts";
 import {
   SENSITIVE_ACTION_MAX_AUTH_AGE,
   SESSION_ABSOLUTE_TIMEOUT,
@@ -12,7 +13,6 @@ import {
   SESSION_IDLE_TIMEOUT,
 } from "./constants.ts";
 import { deleteSessionCookie, setSessionCookie } from "./cookie.ts";
-import { sessions } from "./kv.ts";
 import { Session } from "./types.ts";
 
 // The session id is a ULID minted whenever a passkey ceremony completes

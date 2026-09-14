@@ -1,11 +1,11 @@
 import { verifyRegResponseJson } from "@features/passkeys/ceremony/reg-verify.ts";
+import { passkeys } from "@features/passkeys/collection.ts";
 import { getDefaultPasskeyName } from "@features/passkeys/helpers.ts";
-import { passkeys } from "@features/passkeys/kv.ts";
 import {
   setNewSessionCookie,
   stageSession,
 } from "@features/sessions/helpers.ts";
-import { users } from "@features/users/kv.ts";
+import { users } from "@features/users/collection.ts";
 import { Context } from "@shared/context.ts";
 import { kv } from "@shared/kv/kv.ts";
 import { respondBadRequest } from "@shared/responses/bad-request.ts";

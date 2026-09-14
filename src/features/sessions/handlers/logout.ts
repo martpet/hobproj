@@ -4,9 +4,9 @@ import { respondForbidden } from "@shared/responses/forbidden.tsx";
 import { redirectBack } from "@shared/responses/redirect-back.ts";
 import { respondRedirect } from "@shared/responses/redirect.ts";
 import { respondUnauthorized } from "@shared/responses/unauthorized.tsx";
+import { sessions } from "../collection.ts";
 import { deleteSessionCookie } from "../cookie.ts";
 import { destroySession } from "../helpers.ts";
-import { sessions } from "../kv.ts";
 import { recordSessionEvent } from "../telemetry.ts";
 
 export async function handleLogOut(c: Context) {

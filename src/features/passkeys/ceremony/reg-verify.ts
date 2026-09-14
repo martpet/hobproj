@@ -4,9 +4,9 @@ import {
   RegistrationResponseJSON,
   verifyRegistrationResponse,
 } from "@simplewebauthn/server";
+import { passkeyRegOptions } from "../collection.ts";
 import { WEBAUTHN_ORIGIN, WEBAUTHN_RP_ID } from "../constants.ts";
 import { deletePasskeyRegCookie, getPasskeyRegCookie } from "../cookie.ts";
-import { passkeyRegOptions } from "../kv.ts";
 import { recordPasskeyEvent, withWebAuthnCeremonySpan } from "../telemetry.ts";
 import { Passkey } from "../types.ts";
 

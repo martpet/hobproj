@@ -6,8 +6,8 @@ import { respondConflict } from "@shared/responses/conflict.ts";
 import { respondForbidden } from "@shared/responses/forbidden.tsx";
 import { respondUnauthorized } from "@shared/responses/unauthorized.tsx";
 import { verifyRegResponseJson } from "../../ceremony/reg-verify.ts";
+import { passkeys } from "../../collection.ts";
 import { getDefaultPasskeyName } from "../../helpers.ts";
-import { passkeys } from "../../kv.ts";
 import { recordPasskeyEvent } from "../../telemetry.ts";
 
 export async function handlePasskeyAddFinish(c: Context) {

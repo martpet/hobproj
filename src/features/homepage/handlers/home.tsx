@@ -1,5 +1,5 @@
-import { passkeys } from "@features/passkeys/kv.ts";
-import { sessions } from "@features/sessions/kv.ts";
+import { passkeys } from "@features/passkeys/collection.ts";
+import { sessions } from "@features/sessions/collection.ts";
 import { Context, isAuthenticatedContext } from "@shared/context.ts";
 import { PrivateHome } from "../jsx/PrivateHome.tsx";
 import { PublicHome } from "../jsx/PublicHome.tsx";

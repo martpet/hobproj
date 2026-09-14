@@ -1,6 +1,6 @@
 import { setFlash } from "@features/flash/helpers.ts";
+import { sessions } from "@features/sessions/collection.ts";
 import { isReauthRequiredForSensitiveAction } from "@features/sessions/helpers.ts";
-import { sessions } from "@features/sessions/kv.ts";
 import { respondReauthRequired } from "@features/sessions/responses/reauth-required.ts";
 import { Context, isAuthenticatedContext } from "@shared/context.ts";
 import { requestAcceptsHtml } from "@shared/header/negotiation.ts";
@@ -9,7 +9,7 @@ import { respondConflict } from "@shared/responses/conflict.ts";
 import { respondNotFound } from "@shared/responses/not-found.tsx";
 import { redirectBack } from "@shared/responses/redirect-back.ts";
 import { respondUnauthorized } from "@shared/responses/unauthorized.tsx";
-import { passkeys } from "../kv.ts";
+import { passkeys } from "../collection.ts";
 import { getUnknownCredentialSignal } from "../signals.ts";
 import { recordPasskeyEvent } from "../telemetry.ts";
 

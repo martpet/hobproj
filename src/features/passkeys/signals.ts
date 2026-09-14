@@ -2,8 +2,8 @@ import {
   SendSignalAllAcceptedCredentialsOpts,
   SendSignalUnknownCredentialOpts,
 } from "@simplewebauthn/server";
+import { passkeys } from "./collection.ts";
 import { WEBAUTHN_RP_ID } from "./constants.ts";
-import { passkeys } from "./kv.ts";
 import { Passkey } from "./types.ts";
 
 // Tells the credential manager the passkey it just offered is not one this
