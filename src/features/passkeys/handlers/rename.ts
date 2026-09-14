@@ -46,7 +46,7 @@ export async function handlePasskeyRename(c: Context) {
 
   if (usedName !== passkey.name) {
     const atomic = kv.atomic();
-    passkeys.stageSet(atomic, { ...passkey, name: usedName });
+    await passkeys.stageSet(atomic, { ...passkey, name: usedName });
     await atomic.commit();
   }
 

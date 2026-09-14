@@ -1,7 +1,7 @@
 import { WEBAUTHN_TIMEOUT } from "./constants.ts";
 import { IS_DEV } from "@shared/constants.ts";
 import { Context } from "@shared/context.ts";
-import { generateToken } from "@shared/crypto.ts";
+import { generateRandomToken } from "@shared/crypto/random-token.ts";
 import { SECOND } from "@std/datetime";
 import { deleteCookie, getCookies, setCookie } from "@std/http";
 
@@ -17,7 +17,7 @@ const COOKIE_ATTRIBUTES = {
 // Both ceremony cookies are `Strict`: they are only ever read by a same-site
 // `fetch()` seconds after being set, so there is no cross-site case to allow.
 export function setPasskeyRegCookie(headers: Headers) {
-  const value = generateToken();
+  const value = generateRandomToken();
 
   setCookie(headers, {
     name: PASSKEY_REG_COOKIE,
@@ -31,7 +31,7 @@ export function setPasskeyRegCookie(headers: Headers) {
 }
 
 export function setPasskeyAuthCookie(headers: Headers) {
-  const value = generateToken();
+  const value = generateRandomToken();
 
   setCookie(headers, {
     name: PASSKEY_AUTH_COOKIE,

@@ -19,6 +19,7 @@ import { ensureCaddyConfig, ensureCaddyRepoAndPackage } from "./steps/caddy.ts";
 import { ensureUsersAndGroups } from "./steps/users.ts";
 import { ensureDirectoryLayout } from "./steps/directories.ts";
 import { ensureEtcHobprojEnvFiles } from "./steps/env-files.ts";
+import { ensureKvEncryptionKeys } from "./steps/kv-encryption-key.ts";
 import { ensureOpenTelemetryCollector } from "./steps/otel-collector.ts";
 import { ensureDeployerConfigFiles } from "./steps/deployer-config.ts";
 import {
@@ -46,6 +47,8 @@ try {
   results.push(await ensureUsersAndGroups(config));
   results.push(...await ensureDirectoryLayout());
   results.push(...await ensureEtcHobprojEnvFiles(config));
+  // Before the app units, which load these credentials.
+  results.push(...await ensureKvEncryptionKeys());
   results.push(...await ensureOpenTelemetryCollector(config));
   results.push(...await ensureDeployerConfigFiles(config));
   results.push(...await ensureSystemdAppUnits());

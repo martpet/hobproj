@@ -57,7 +57,7 @@ export async function handlePasskeyAddFinish(c: Context) {
   const atomic = kv.atomic();
   const name = getDefaultPasskeyName(passkey);
 
-  passkeys.stageSet(atomic, { ...passkey, userId: c.user.id, name });
+  await passkeys.stageSet(atomic, { ...passkey, userId: c.user.id, name });
 
   await atomic.commit();
 

@@ -1,6 +1,13 @@
+import { recordException } from "@shared/observability/core.ts";
 import { registerKvEntity, withKvSpan } from "@shared/observability/kv.ts";
 import { toSnakeCase } from "@std/text";
 import { ulid } from "@std/ulid";
+import {
+  blindIndex,
+  decryptValue,
+  encryptValue,
+  isEncryptionEnabled,
+} from "@shared/crypto/encryption.ts";
 
 /** Properties of `T` that can be used as a key part. */
 export type KvKeyProp<T> = {
@@ -11,6 +18,17 @@ export type KvKeyProp<T> = {
 // the leading property names the index: `["userId", "id"]` is read with
 // `listByUserId` and stored under `session_by_user_id`.
 export type KvIndex<T> = KvKeyProp<T> | readonly KvKeyProp<T>[];
+
+/**
+ * Properties that may be encrypted: string-valued, and never the primary key,
+ * which the collection mints itself.
+ */
+export type KvEncryptedProp<T, Key extends KvKeyProp<T>> = Exclude<
+  {
+    [K in keyof T]-?: NonNullable<T[K]> extends string ? K : never;
+  }[keyof T],
+  Key
+>;
 
 export interface KvCollectionConfig<
   T,
@@ -23,6 +41,15 @@ export interface KvCollectionConfig<
   key: Key;
   /** Further lookups, each named by the property it leads with. */
   indexes?: Indexes;
+  /**
+   * Properties held as ciphertext rather than plaintext. An encrypted
+   * property may still be indexed — its key part becomes a blind index, so
+   * `getBy...`/`listBy...` keep taking the plaintext — but only for equality
+   * lookups: hashing destroys ordering, so a property an index relies on for
+   * range semantics (a `lastActive` leading a sorted index, say) must stay
+   * unencrypted.
+   */
+  encrypt?: readonly KvEncryptedProp<T, Key>[];
   expireIn?: number | ((value: T) => number | undefined);
 }
 
@@ -60,7 +87,7 @@ type KvLookups<T, ByName> =
   & {
     [P in keyof ByName as `keyBy${Capitalize<P & string>}`]: (
       ...parts: KvParts<T, ByName[P]>
-    ) => Deno.KvKey;
+    ) => Promise<Deno.KvKey>;
   }
   & {
     [P in keyof ByName as `getBy${Capitalize<P & string>}`]: (
@@ -98,10 +125,10 @@ export type KvCollection<
       atomic: Deno.AtomicOperation,
       value: KvInput<T, Key>,
       options?: KvSetOptions<T>,
-    ): T;
+    ): Promise<T>;
     delete(value: T): Promise<void>;
     /** `delete`, queued on a commit the caller owns. */
-    stageDelete(atomic: Deno.AtomicOperation, value: T): void;
+    stageDelete(atomic: Deno.AtomicOperation, value: T): Promise<void>;
   };
 
 interface IndexEntry<T> {
@@ -133,6 +160,18 @@ export function createDefineCollection(kv: Deno.Kv) {
     ): KvCollection<T, Key, Indexes> {
       const { name, key: primary, indexes: extra = [], expireIn } = config;
 
+      // Left empty where encryption is switched off (dev without a key), so
+      // every field takes the plaintext path below.
+      const encrypted = new Set<PropertyKey>(
+        isEncryptionEnabled ? config.encrypt ?? [] : [],
+      );
+
+      // Pins a value to the field it was written for; see
+      // `@shared/crypto/encryption.ts`.
+      function scopeOf(prop: PropertyKey) {
+        return `${name}:${String(prop)}`;
+      }
+
       // Keyed by the leading property, which is how the lookups are named.
       const indexes = new Map<PropertyKey, IndexEntry<T>>();
 
@@ -155,16 +194,129 @@ export function createDefineCollection(kv: Deno.Kv) {
         indexes.set(lead, { prefix, props });
       }
 
-      function key(lead: PropertyKey, ...parts: Deno.KvKeyPart[]): Deno.KvKey {
-        return [indexes.get(lead)!.prefix, ...parts];
+      // An encrypted property can't be its own key part: ciphertext differs on
+      // every write, so a lookup would never find it again. The deterministic
+      // blind index stands in for it, on writes and lookups alike.
+      function keyPart(prop: KvKeyProp<T> | undefined, part: Deno.KvKeyPart) {
+        if (prop === undefined || !encrypted.has(prop)) {
+          return Promise.resolve(part);
+        }
+        return blindIndex(scopeOf(prop), String(part));
+      }
+
+      async function key(
+        lead: PropertyKey,
+        ...parts: Deno.KvKeyPart[]
+      ): Promise<Deno.KvKey> {
+        const { prefix, props } = indexes.get(lead)!;
+        return [
+          prefix,
+          ...await Promise.all(
+            parts.map((part, position) => keyPart(props[position], part)),
+          ),
+        ];
       }
 
       // Every index holds the whole value, so a write touches all of them.
-      function keysOf(value: T): Deno.KvKey[] {
-        return indexes.values().map(({ prefix, props }) => [
-          prefix,
-          ...props.map((prop) => value[prop as keyof T] as Deno.KvKeyPart),
-        ]).toArray();
+      function keysOf(value: T): Promise<Deno.KvKey[]> {
+        return Promise.all(
+          indexes.values().map(async ({ prefix, props }) => [
+            prefix,
+            ...await Promise.all(
+              props.map((prop) =>
+                keyPart(prop, value[prop as keyof T] as Deno.KvKeyPart)
+              ),
+            ),
+          ]).toArray(),
+        );
+      }
+
+      // The stored shape differs from `T` only in that encrypted properties
+      // hold ciphertext; callers never see it, because every read path below
+      // runs it back through `decryptFields`.
+      async function encryptFields(value: T): Promise<T> {
+        if (encrypted.size === 0) return value;
+
+        const stored = { ...value } as Record<PropertyKey, unknown>;
+
+        for (const prop of encrypted) {
+          const plaintext = stored[prop];
+          if (plaintext == null) continue;
+          stored[prop] = await encryptValue(scopeOf(prop), String(plaintext));
+        }
+
+        return stored as T;
+      }
+
+      // `null` for a value this environment can't read: written under another
+      // key, tampered with, or left behind by an earlier format. Callers treat
+      // that as a missing record, so a half-readable value never escapes.
+      async function decryptFields(
+        value: T,
+      ): Promise<{ readable: true; value: T } | { readable: false }> {
+        if (encrypted.size === 0) return { readable: true, value };
+
+        const plain = { ...value } as Record<PropertyKey, unknown>;
+
+        for (const prop of encrypted) {
+          const stored = plain[prop];
+          if (stored == null) continue;
+
+          const plaintext = typeof stored === "string"
+            ? await decryptValue(scopeOf(prop), stored)
+            : null;
+
+          if (plaintext === null) {
+            recordException(
+              new Error(
+                `Cannot decrypt "${String(prop)}" of "${name}"; ` +
+                  "treating the record as missing",
+              ),
+            );
+            return { readable: false };
+          }
+
+          plain[prop] = plaintext;
+        }
+
+        return { readable: true, value: plain as T };
+      }
+
+      // Indistinguishable from what KV returns for a key that holds nothing,
+      // down to the dropped versionstamp: an `atomic().check()` built on this
+      // entry then asserts "nothing here" and the commit fails, rather than
+      // overwriting a record this process could not read.
+      async function decryptEntry(
+        entry: Deno.KvEntryMaybe<T>,
+      ): Promise<Deno.KvEntryMaybe<T>> {
+        if (entry.versionstamp === null) return entry;
+
+        const decrypted = await decryptFields(entry.value);
+
+        if (!decrypted.readable) {
+          return { key: entry.key, value: null, versionstamp: null };
+        }
+
+        return {
+          key: entry.key,
+          value: decrypted.value,
+          versionstamp: entry.versionstamp,
+        };
+      }
+
+      async function decryptEntries(entries: Deno.KvEntry<T>[]) {
+        if (encrypted.size === 0) return entries;
+
+        const decrypted: Deno.KvEntry<T>[] = [];
+
+        for (const entry of entries) {
+          const value = await decryptFields(entry.value);
+          // A `Deno.KvEntry` has nowhere to put "unreadable", so the entry
+          // drops out of the list, exactly as a missing one would.
+          if (value.readable) decrypted.push({ ...entry, value: value.value });
+        }
+
+        return decrypted;
       }
 
       // The collection owns its primary key, so a value that arrives without
@@ -176,18 +328,18 @@ export function createDefineCollection(kv: Deno.Kv) {
         return { ...value, [primary]: ulid() } as T;
       }
 
-      function stageSet(
+      async function stageSet(
         atomic: Deno.AtomicOperation,
         value: KvInput<T, Key>,
         options?: KvSetOptions<T>,
       ) {
         const next = withKey(value);
-        const keys = keysOf(next);
+        const keys = await keysOf(next);
 
         // An index built on a changing property (a session's `lastActive`)
         // leaves the old key behind, pointing at a stale copy of the value.
         if (options?.previous) {
-          keysOf(options.previous).forEach((previousKey, position) => {
+          (await keysOf(options.previous)).forEach((previousKey, position) => {
             const nextKey = keys[position];
             if (nextKey && !sameKey(previousKey, nextKey)) {
               atomic.delete(previousKey);
@@ -198,21 +350,25 @@ export function createDefineCollection(kv: Deno.Kv) {
         const ttl = options?.expireIn ??
           (typeof expireIn === "function" ? expireIn(next) : expireIn);
 
+        const stored = await encryptFields(next);
+
         for (const nextKey of keys) {
           atomic.set(
             nextKey,
-            next,
+            stored,
             ttl === undefined ? undefined : {
               expireIn: ttl,
             },
           );
         }
 
+        // The caller keeps the plaintext it handed in; only KV sees
+        // ciphertext.
         return next;
       }
 
-      function stageDelete(atomic: Deno.AtomicOperation, value: T) {
-        for (const staleKey of keysOf(value)) {
+      async function stageDelete(atomic: Deno.AtomicOperation, value: T) {
+        for (const staleKey of await keysOf(value)) {
           atomic.delete(staleKey);
         }
       }
@@ -222,13 +378,13 @@ export function createDefineCollection(kv: Deno.Kv) {
         stageDelete,
         set: async (value: KvInput<T, Key>, options?: KvSetOptions<T>) => {
           const atomic = kv.atomic();
-          const next = stageSet(atomic, value, options);
+          const next = await stageSet(atomic, value, options);
           await atomic.commit();
           return next;
         },
         delete: async (value: T) => {
           const atomic = kv.atomic();
-          stageDelete(atomic, value);
+          await stageDelete(atomic, value);
           await atomic.commit();
         },
       };
@@ -236,17 +392,24 @@ export function createDefineCollection(kv: Deno.Kv) {
       for (const lead of indexes.keys()) {
         const lookup = title(String(lead));
 
-        const getEntry = (...parts: Deno.KvKeyPart[]) => {
-          const entryKey = key(lead, ...parts);
-          return withKvSpan("get", entryKey, () => kv.get<T>(entryKey));
+        // Decryption runs inside the span, so a record that fails to decrypt
+        // is recorded against the read that found it.
+        const getEntry = async (...parts: Deno.KvKeyPart[]) => {
+          const entryKey = await key(lead, ...parts);
+          return withKvSpan(
+            "get",
+            entryKey,
+            async () => decryptEntry(await kv.get<T>(entryKey)),
+          );
         };
 
-        const listEntries = (part: Deno.KvKeyPart) => {
-          const prefix = key(lead, part);
+        const listEntries = async (part: Deno.KvKeyPart) => {
+          const prefix = await key(lead, part);
           return withKvSpan(
             "list",
             prefix,
-            () => Array.fromAsync(kv.list<T>({ prefix })),
+            async () =>
+              decryptEntries(await Array.fromAsync(kv.list<T>({ prefix }))),
           );
         };
 

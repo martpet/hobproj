@@ -31,6 +31,9 @@ export const SYSTEM_PATHS = {
   aptSources: "/etc/apt/sources.list.d",
   caddyConfig: "/etc/caddy/Caddyfile",
   cloudflaredConfig: "/etc/cloudflared",
+  // Where systemd mounts a unit's `LoadCredentialEncrypted=` credentials,
+  // under a per-unit subdirectory it points $CREDENTIALS_DIRECTORY at.
+  credentials: "/run/credentials",
   crypttab: "/etc/crypttab",
   devNull: "/dev/null",
   devices: "/dev",

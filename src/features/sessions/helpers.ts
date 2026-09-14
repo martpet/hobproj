@@ -1,7 +1,7 @@
 import { setFlash } from "@features/flash/helpers.ts";
 import { users } from "@features/users/collection.ts";
 import { AuthenticatedContext, Context } from "@shared/context.ts";
-import { generateToken } from "@shared/crypto.ts";
+import { generateRandomToken } from "@shared/crypto/random-token.ts";
 import { cacheNoStoreOnCookieChange } from "@shared/header/cache-control.ts";
 import { kv } from "@shared/kv/kv.ts";
 import { decodeTime } from "@std/ulid";
@@ -47,7 +47,7 @@ export function stageSession(
   const now = Date.now();
 
   return sessions.stageSet(atomic, {
-    cookie: generateToken(),
+    cookie: generateRandomToken(),
     userId,
     passkeyId,
     expiresAt: now + SESSION_IDLE_TIMEOUT,
@@ -82,7 +82,7 @@ export async function createSession(
   // session can't be minted for an account that was just removed.
   atomic.check(userEntry);
 
-  const session = stageSession(c, userId, passkeyId, atomic);
+  const session = await stageSession(c, userId, passkeyId, atomic);
 
   const result = await atomic.commit();
 
@@ -132,7 +132,7 @@ export async function extendCurrentSession(
   // `lastActive` is part of one index key; `setSession` drops the stale
   // entry itself when given the previous session.
   atomic.check(sessionEntry);
-  sessions.stageSet(atomic, updatedSession, { previous: session });
+  await sessions.stageSet(atomic, updatedSession, { previous: session });
 
   const result = await atomic.commit();
 
@@ -154,7 +154,7 @@ export async function extendCurrentSession(
 export async function destroySession(session: Session) {
   const atomic = kv.atomic();
 
-  sessions.stageDelete(atomic, session);
+  await sessions.stageDelete(atomic, session);
 
   const result = await atomic.commit();
 
@@ -167,7 +167,7 @@ export async function destroySessionIfUnchanged(
   const atomic = kv.atomic();
 
   atomic.check(entry);
-  sessions.stageDelete(atomic, entry.value);
+  await sessions.stageDelete(atomic, entry.value);
 
   const result = await atomic.commit();
 

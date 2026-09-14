@@ -143,6 +143,17 @@ backup. Keep the recovery passphrase and the backup encryption password outside
 the Pi. Losing the Pi key, recovery passphrase, and usable encrypted database
 backups makes the USB intentionally unrecoverable.
 
+The SD card also held the KV encryption keys, which do not survive a reinstall.
+Restore them from your backups **before** running `setup-remote`, otherwise it
+generates fresh ones and every encrypted field on the USB becomes unreadable:
+
+```sh
+deno task set-secret kv_encryption_key_prod
+deno task set-secret kv_encryption_key_staging
+```
+
+See [Database field encryption](#database-field-encryption).
+
 ### Storage setup failure
 
 If the installer stops after migration was authorized, do not manually create
@@ -311,6 +322,85 @@ if the Pi (or its SD card) is lost. If that happens, re-issue new values from
 the Cloudflare and MaxMind dashboards and run `set-secret` again for each — this
 trade-off was chosen deliberately since none of these values needs to survive Pi
 loss.
+
+The KV encryption keys are the one exception: nobody can re-issue them, so they
+must be backed up. See
+[Database field encryption](#database-field-encryption).
+
+## Database field encryption
+
+Sensitive KV fields — currently a session's `cookie` and `ip` — are stored
+encrypted, so the database file and any backup of it hold no usable session
+tokens or IP addresses. The implementation lives in
+`src/shared/crypto/`; a collection opts in with `encrypt: [...]` (see
+`src/features/sessions/collection.ts`).
+
+Each environment has its **own independently generated 32-byte key**, created
+by the installer, and stored next to the other credentials:
+
+```txt
+/etc/hobproj/credstore.encrypted/kv_encryption_key_staging.cred
+/etc/hobproj/credstore.encrypted/kv_encryption_key_prod.cred
+```
+
+Prod's key cannot read staging's data, or the other way round. The app units
+receive their own key through `LoadCredentialEncrypted=`, and the app reads it
+from `$CREDENTIALS_DIRECTORY`; it never exists in an env file.
+
+A key is generated **only if its file is absent**. Re-running `setup-remote`
+never replaces an existing one, because the old key is the only thing that can
+read what is already stored.
+
+When a key *is* missing, setup stops and asks, rather than deciding for you:
+
+1. It offers to take a saved key, read with hidden input. Paste one and it is
+   simply restored — this is the whole recovery path on a rebuilt machine.
+2. Press Enter instead and it generates a fresh 32-byte key, then **prints it
+   once** so it can go straight into your password manager. That printing is
+   the only moment the key exists anywhere but on the Pi's disk.
+3. If a database already exists for that environment while its key does not,
+   the key was lost with the SD card, and a new one would orphan every
+   encrypted field. Setup then requires you to type `generate <env>` before it
+   will do that, and aborts otherwise.
+
+> ⚠️ **Back both keys up.** They are encrypted to this machine — on a Pi, with a
+> host key on the SD card, since there is no TPM — so a database backup
+> restored elsewhere is undecryptable without them, and reformatting the SD
+> card destroys them. Unlike the provider-issued secrets above, a lost key
+> cannot be re-issued: the fields encrypted with it are gone. Keep them with
+> the LUKS recovery passphrase. To read one out later:
+>
+> ```sh
+> ssh <pi> sudo systemd-creds decrypt --name=kv_encryption_key \
+>   /etc/hobproj/credstore.encrypted/kv_encryption_key_prod.cred -
+> ```
+
+### Restoring a key
+
+To put a backed-up key onto a rebuilt machine:
+
+```sh
+deno task set-secret kv_encryption_key_prod
+```
+
+It takes the base64 value printed above, checks it decodes to 32 bytes, and
+re-encrypts it to the new host. Run it **before** `setup-remote`, which
+otherwise generates a fresh key and orphans the existing data. If a key is
+already present, the command first requires a typed confirmation, then
+`try-restart`s whichever color is currently serving that environment so the new
+key takes effect.
+
+Losing the keys costs only the encrypted fields, not the accounts: users and
+passkeys are stored in the clear, so everyone simply has to sign in again.
+
+Local development is unencrypted unless `KV_ENCRYPTION_KEY` is set in `.env`.
+Set it to the output of the command above to read a restored staging/prod
+database locally (`deno task restore-db`); leave it unset for ordinary local
+work.
+
+Because the deployer's `--allow-read` grant is written by `setup-remote`, an
+existing Pi needs `deno task publish-installer && deno task setup-remote` once
+before deploying a build that expects an encryption key.
 
 ## Adding a developer
 

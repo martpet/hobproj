@@ -61,7 +61,7 @@ export async function handlePasskeyDelete(c: Context) {
 
   const atomic = kv.atomic();
 
-  passkeys.stageDelete(atomic, passkey);
+  await passkeys.stageDelete(atomic, passkey);
 
   // A session's legitimacy is derived from the passkey that minted it, so a
   // revoked credential shouldn't keep granting access. The current session
@@ -70,7 +70,7 @@ export async function handlePasskeyDelete(c: Context) {
   const userSessions = await sessions.listByUserId(c.user.id);
   for (const session of userSessions) {
     if (session.passkeyId === passkey.id && session.id !== c.session.id) {
-      sessions.stageDelete(atomic, session);
+      await sessions.stageDelete(atomic, session);
     }
   }
 

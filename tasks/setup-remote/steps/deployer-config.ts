@@ -5,10 +5,11 @@ import {
 } from "../../utils/environment.ts";
 import {
   APP_GROUP,
+  appCredentialsDir,
   appServiceName,
   REMOTE_PORTS,
 } from "../../utils/infrastructure.ts";
-import { APP_OTEL_ENDPOINT } from "../constants.ts";
+import { APP_OTEL_ENDPOINT, COLORS } from "../constants.ts";
 import type { Config } from "../load-config.ts";
 import { ensureFile, type StepResult } from "../step-helpers.ts";
 
@@ -64,7 +65,15 @@ export async function ensureDeployerConfigFiles(
       `ENV_NAME=${env}`,
       `APP_PATH=${appPath}`,
       `UPLOAD_PATH=${REMOTE_PATHS.upload}/${env}`,
-      `ALLOW_READ=${REMOTE_PATHS.storageMount}/${env}/db,${REMOTE_PATHS.geoip}`,
+      `ALLOW_READ=${
+        [
+          `${REMOTE_PATHS.storageMount}/${env}/db`,
+          REMOTE_PATHS.geoip,
+          // The KV encryption key, in whichever color's unit the binary ends
+          // up running as.
+          ...COLORS.map((color) => appCredentialsDir(env, color)),
+        ].join(",")
+      }`,
       `ALLOW_WRITE=${REMOTE_PATHS.storageMount}/${env}/db`,
       `BLUE_PORT=${REMOTE_PORTS[env].blue}`,
       `GREEN_PORT=${REMOTE_PORTS[env].green}`,

@@ -131,7 +131,7 @@ export async function verifiyAuthResponseJson(
       };
 
       atomic.check(passkeyEntry);
-      passkeys.stageSet(atomic, updatedPasskey);
+      await passkeys.stageSet(atomic, updatedPasskey);
 
       const result = await atomic.commit();
 

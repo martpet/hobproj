@@ -43,14 +43,14 @@ export async function handleSignupFinish(c: Context) {
   // unique even if two signups for it finish at the same moment; the loser
   // gets 409. `handleSignupStart` already checked, but that was a race.
   atomic.check({
-    key: users.keyByUsername(username),
+    key: await users.keyByUsername(username),
     versionstamp: null,
   });
 
-  const user = users.stageSet(atomic, { username });
+  const user = await users.stageSet(atomic, { username });
 
   // First passkey of a new user, always named after the authenticator.
-  const storedPasskey = passkeys.stageSet(atomic, {
+  const storedPasskey = await passkeys.stageSet(atomic, {
     ...passkey,
     userId: user.id,
     name: getDefaultPasskeyName(passkey),
@@ -58,7 +58,7 @@ export async function handleSignupFinish(c: Context) {
 
   // User, passkey and session land in one commit, so there is no window in
   // which the account exists but the signup response can't log the user in.
-  const session = stageSession(c, user.id, storedPasskey.id, atomic);
+  const session = await stageSession(c, user.id, storedPasskey.id, atomic);
 
   const commit = await atomic.commit();
 

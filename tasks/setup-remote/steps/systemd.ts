@@ -11,6 +11,10 @@ import {
   REMOTE_PORTS,
 } from "../../utils/infrastructure.ts";
 import { ensureFile, pathExists, type StepResult } from "../step-helpers.ts";
+import {
+  KV_ENCRYPTION_KEY_CREDENTIAL,
+  kvEncryptionKeyPath,
+} from "../secrets.ts";
 
 export async function ensureSystemdAppUnits(): Promise<StepResult[]> {
   const results: StepResult[] = [];
@@ -50,6 +54,12 @@ export async function ensureSystemdAppUnits(): Promise<StepResult[]> {
         `Environment=APP_PORT=${REMOTE_PORTS[env][color]}`,
         `Environment=HOME=${colorHome}`,
         `EnvironmentFile=${colorPath}/.deployment-id`,
+        // Decrypted by systemd into $CREDENTIALS_DIRECTORY for this unit
+        // alone, readable by no other service and never written to disk in
+        // the clear. Each environment loads its own key file.
+        `LoadCredentialEncrypted=${KV_ENCRYPTION_KEY_CREDENTIAL}:${
+          kvEncryptionKeyPath(env)
+        }`,
         "Restart=always",
         "RestartSec=5s",
         // Give the graceful-shutdown SIGTERM handler in main.ts real time

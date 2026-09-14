@@ -37,18 +37,18 @@ export async function handleAccountDelete(c: Context) {
   // midway can't leave live sessions or passkeys pointing at a missing user.
   const userSessions = await sessions.listByUserId(user.id);
   for (const session of userSessions) {
-    sessions.stageDelete(atomic, session);
+    await sessions.stageDelete(atomic, session);
   }
 
   const userPasskeys = await passkeys.listByUserId(user.id);
   for (const passkey of userPasskeys) {
-    passkeys.stageDelete(atomic, passkey);
-    passkeyTombstones.stageSet(atomic, {
+    await passkeys.stageDelete(atomic, passkey);
+    await passkeyTombstones.stageSet(atomic, {
       webauthnUserId: passkey.webauthnUserId,
     });
   }
 
-  users.stageDelete(atomic, user);
+  await users.stageDelete(atomic, user);
 
   await atomic.commit();
 

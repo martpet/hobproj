@@ -1,5 +1,5 @@
 import type { RemoteEnvName } from "./environment.ts";
-import { STORAGE_MAPPER_NAME } from "./remote-paths.ts";
+import { STORAGE_MAPPER_NAME, SYSTEM_PATHS } from "./remote-paths.ts";
 
 export const APP_USER = "hobproj";
 export const APP_GROUP = "hobproj";
@@ -19,6 +19,16 @@ export function appServiceName(
 
 export function legacyAppServiceName(env: RemoteEnvName): string {
   return `${APP_SERVICE_PREFIX}.${env}`;
+}
+
+// Where systemd mounts one app unit's `LoadCredentialEncrypted=` credentials,
+// and what it points that unit's $CREDENTIALS_DIRECTORY at. Each color runs as
+// its own unit, so each gets its own directory.
+export function appCredentialsDir(
+  env: RemoteEnvName,
+  color: "blue" | "green",
+): string {
+  return `${SYSTEM_PATHS.credentials}/${appServiceName(env, color)}.service`;
 }
 
 export function deployGroupName(env: RemoteEnvName): string {
